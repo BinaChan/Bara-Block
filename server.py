@@ -237,7 +237,7 @@ class Handler(SimpleHTTPRequestHandler):
         clean=urlparse(path).path
         if clean in ('','/','/index.html'):return str(ROOT/'index.html')
         name=Path(clean.lstrip('/'))
-        allowed={'app.js','app.css','seed.js','sites_catalog.js','assets/bara-logo.webp',
+        allowed={'app.js','app.css','seed.js','sites_catalog.js','assets/bara-logo.webp','static_bridge.js',
                  'data/derived/structured_sites.csv','data/derived/structured_sites.json',
                  'data/derived/smap_sites.csv','data/derived/smap_sites.json'}
         if name.as_posix() not in allowed:return str(ROOT/'__invalid__')

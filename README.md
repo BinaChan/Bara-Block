@@ -64,3 +64,28 @@ GitHub Pages cannot serve this Python application's `/api/*` endpoints;
 deploy the backend to a Docker/Python service to use the cache and simulator.
 `.gitignore` does not untrack previously committed edit files: review any
 existing `data/tersimpan/edits` files before public redistribution.
+
+
+## GitHub Pages static preview
+
+The published `https://binachan.github.io/Bara-Block/` URL runs only HTML/CSS/JavaScript.
+It **cannot execute Python APIs** such as `/api/foundation` or refresh BIG and ERA5-Land
+on the server. A browser bridge in `static_bridge.js` now loads the site's
+previously collected OSM, peat shapes, peat masks and cached canal-block screening
+directly from the repo's `data/tersimpan` directory, using the original 24-digit
+site cache keys. Precomputed canal-block locations are the bundled results of
+the Python geometry algorithm, not new browser hydrodynamic calculations.
+
+SMAP values load from `data/derived/smap_sites.json` (historical 2024 snapshot);
+ERA5-Land is labeled unavailable when no ERA5 dataset has been bundled. Fire
+simulation and fire-relative priority numbering still run locally in the browser.
+**Sync OSM** can try public Overpass directly when an API response fails, but
+connection/CORS/rate-limit failures cannot be guaranteed away. It retains the
+already rendered cache.
+
+Default GitHub Pages site is Kubu Raya Peat Fringe (KAL-01), which has bundled
+canal mapping, BIG peat mask and cached canal-block proposals. Sites with
+incomplete original caches retain honest unavailable measurements.
+For a complete live-data product, deploy `server.py` on Docker/Python hosting
+with a persistent runtime cache volume. GitHub Pages is a **static, interactive
+cached-data preview**, not a replacement for the Python analysis service.

@@ -2,6 +2,7 @@
 const $=id=>document.getElementById(id),RAD=Math.PI/180,PI=Math.PI;
 const clip=(v,a,b)=>Math.max(a,Math.min(b,v));
 const D=(a,b,c,d)=>{const dy=(b-d)*111195,dx=(a-c)*111195*Math.cos((b+d)/2*RAD);return Math.hypot(dx,dy)};
+const STATIC_PAGES=Boolean(window.BARA_STATIC_API?.enabled);
 const S={osmRaw:null,peatRaw:null,foundation:null,foundationReady:false,foundationToken:0,rankedBlockPlaces:[],fireRankStatus:null,customCanals:[],drawPoints:[],site:null,lat:-5.53,lon:138.15,z:11.5,mode:'inspect',tiles:new Map(),tileLoads:0, sar:null,sarToken:0,env:null,envToken:0,envPollTimer:null,manualWind:false,manualDirection:false,networkUpdated:null,autoRefresh:null,w:800,h:520,dpr:1,canals:[],rivers:[],structures:[],searchId:0,searchStatus:'idle',scanBounds:null,baseLayer:'terrain',peatRasters:{},showSoil:true,blockPlaces:[],manual:[],shownBlocks:[],gis:{khg:null,feg:null},gisShapes:[],gisLoading:false,showKHG:true,showFEG:true,water:65,weather:'dry',wind:18,direction:90,teams:0,arrival:8,blocks:3,horizon:48,ignition:null,fire:null,baseFire:null,hour:0,playing:false,interval:null,drag:null};
 window.BARA25={state:S,scan:()=>scanWaterways(true),sim:()=>simulate(true),rank:()=>simulate(true),play:()=>play()};window.BARA29=window.BARA25;window.BARA24=window.BARA25;
 const papua=[
@@ -98,14 +99,14 @@ function zoom(delta,px=S.w/2,py=S.h/2){const v=VP(),pivot=lnglat(px,py,v);S.z=cl
 function nearestLine(lon,lat){let best=null,dist=Infinity;for(const line of [...S.customCanals,...S.canals,...S.rivers]){const p=line.points||[];for(let j=1;j<p.length;j++){const a=p[j-1],b=p[j],ax=a[0]*Math.cos(lat*RAD),bx=b[0]*Math.cos(lat*RAD),px=lon*Math.cos(lat*RAD);let t=clip(((px-ax)*(bx-ax)+(lat-a[1])*(b[1]-a[1]))/(Math.pow(bx-ax,2)+Math.pow(b[1]-a[1],2)||1),0,1);const q=[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])],d=D(lon,lat,...q);if(d<dist){dist=d;best={line,lon:q[0],lat:q[1],dist:d}}}}return best;}
 function siteSelect(site,fly=true){
  pause();clearTimeout(osmRefreshTimer);S.site=site;const siteKey=site.id==='CUSTOM'?`CUSTOM-${site.lat.toFixed(4)}-${site.lon.toFixed(4)}`:site.id;
- S.siteKey=siteKey.replace(/[^A-Za-z0-9_-]/g,'_');S.editSeq=(S.editSeq||0)+1;
+ S.siteKey=siteKey.replace(/[^A-Za-z0-9_-]/g,'_');if($('placeSelect'))$('placeSelect').value=site.id;S.editSeq=(S.editSeq||0)+1;
  if(fly){S.lat=site.lat;S.lon=site.lon;S.z=12.35}
  S.ignition={lat:site.lat+.004,lon:site.lon-.004};
  S.canals=[];S.rivers=[];S.structures=[];S.customCanals=[];S.drawPoints=[];
 
  S.blockPlaces=[];S.rankedBlockPlaces=[];S.fireRankStatus=null;S.browserImports={};S.manual=[];S.shownBlocks=[];S.lastScanKey=null;
  $('burnMetric').textContent=$('endMetric').textContent=$('benefitMetric').textContent='—';S.osmRaw=null;S.peatRaw=null;S.foundation=null;S.foundationReady=false;S.foundationToken++;S.fire=null;S.baseFire=null; 
- S.gisShapes=[];S.peatRasters={};S.gis={khg:null,feg:null};S.env=null;S.peatLayerDocs={};S.foundationRequestId=(S.foundationRequestId||0)+1;clearTimeout(S.envPollTimer);S.envPollTimer=null;S.manualWind=false;S.manualDirection=false;S.envToken++;$('smapValue').textContent='Loading';$('era5Value').textContent='Loading';$('exportSite').href='/api/structured?site='+encodeURIComponent(S.siteKey);
+ S.gisShapes=[];S.peatRasters={};S.gis={khg:null,feg:null};S.env=null;S.peatLayerDocs={};S.foundationRequestId=(S.foundationRequestId||0)+1;clearTimeout(S.envPollTimer);S.envPollTimer=null;S.manualWind=false;S.manualDirection=false;S.envToken++;$('smapValue').textContent='Loading';$('era5Value').textContent='Loading';$('exportSite').href=STATIC_PAGES?'#':'/api/structured?site='+encodeURIComponent(S.siteKey);
  $('mapTitle').textContent=site.name;$('mapSubtitle').textContent=`${site.province} · ${site.island} · 15 × 15 km AOI`;updateSiteMetrics(site.coverage);
  $('canalNum').textContent=$('riverNum').textContent=$('structureNum').textContent='—';
  $('scanState').textContent='Loading';$('scanExplain').textContent='';
@@ -209,7 +210,7 @@ async function scanWaterways(force=false,attempt=0){
   $('scanExplain').textContent=S.osmRaw?.elements?.length?'Saved map retained':'Network unavailable';
  }finally{if(token===S.searchId){$('scanBtn').disabled=false;S.scanController=null;}}
 }
-function parseOSM(doc){const canals=[],rivers=[],structures=[],ids=new Set();for(const e of doc.elements||[]){let key=e.type+':'+e.id;if(ids.has(key))continue;ids.add(key);const t=e.tags||{},kind=t.waterway||t.water||'',points=(e.geometry||[]).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)).map(p=>[p.lon,p.lat]);if(e.type==='way'&&points.length>=2){let line={id:key,points,name:t.name||'',tags:t,kind:/^(canal|drain|ditch)$/.test(kind)||t.water==='canal'?'canal':'river'};if(line.kind==='canal')canals.push(line);else if(/^(river|stream|tidal_channel)$/.test(kind))rivers.push(line)}const isStruct=Boolean(t.structure||t.sekat_kanal||t.canal_block||/^(weir|dam|sluice_gate|lock_gate|floodgate)$/.test(t.waterway||'')||/^(weir|dam|pumping_station)$/.test(t.man_made||'')||(t.tunnel==='culvert'||t.culvert==='yes'||t.pump==='yes')||/^(dam|sluice_gate)$/.test(t.barrier||''));if(isStruct){const p=e.type==='node'?e:e.center||e.geometry?.[Math.floor((e.geometry?.length||1)/2)];if(p?.lon!=null&&p?.lat!=null)structures.push({id:key,lon:p.lon,lat:p.lat,hasBlockTag:!!(t.sekat_kanal||t.canal_block),kind:t.waterway||t.man_made||'tagged water structure',name:t.name||''})}}return {canals,rivers,structures}}
+function parseOSM(doc){const canals=[],rivers=[],structures=[],ids=new Set();for(const e of doc.elements||[]){let key=e.type+':'+e.id;if(ids.has(key))continue;ids.add(key);const t=e.tags||{},kind=t.waterway||t.water||'',points=(e.geometry||[]).filter(p=>p&&Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&(!S.site||Math.abs(p.lat-S.site.lat)<.12&&Math.abs(p.lon-S.site.lon)<.14)).map(p=>[p.lon,p.lat]);if(e.type==='way'&&points.length>=2){let line={id:key,points,name:t.name||'',tags:t,kind:/^(canal|drain|ditch)$/.test(kind)||t.water==='canal'?'canal':'river'};if(line.kind==='canal')canals.push(line);else if(/^(river|stream|tidal_channel)$/.test(kind))rivers.push(line)}const isStruct=Boolean(t.structure||t.sekat_kanal||t.canal_block||/^(weir|dam|sluice_gate|lock_gate|floodgate)$/.test(t.waterway||'')||/^(weir|dam|pumping_station)$/.test(t.man_made||'')||(t.tunnel==='culvert'||t.culvert==='yes'||t.pump==='yes')||/^(dam|sluice_gate)$/.test(t.barrier||''));if(isStruct){const p=e.type==='node'?e:e.center||e.geometry?.[Math.floor((e.geometry?.length||1)/2)];if(p?.lon!=null&&p?.lat!=null&&(!S.site||Math.abs(p.lat-S.site.lat)<.12&&Math.abs(p.lon-S.site.lon)<.14))structures.push({id:key,lon:p.lon,lat:p.lat,hasBlockTag:!!(t.sekat_kanal||t.canal_block),kind:t.waterway||t.man_made||'tagged water structure',name:t.name||''})}}return {canals,rivers,structures}}
 function recommendBlocks(){
  if(!S.blockPlaces.length){msg('Map or draw canals for block locations');return;}
  simulate(true);
@@ -260,7 +261,13 @@ function loadPeatRaster(type,layer,b,token){
  S.peatRasters[type]={img,bounds:b};
  img.onload=()=>{if(token===S.foundationToken)drawOverlay()};
  img.onerror=()=>{if(token===S.foundationToken)delete S.peatRasters[type]};
- img.src=url;
+ if(STATIC_PAGES){
+  const siteKey=S.siteKey;
+  window.BARA_STATIC_API.rasterPath(siteKey,layer).then(path=>{
+   if(token!==S.foundationToken||siteKey!==S.siteKey)return;
+   if(path)img.src=path;else delete S.peatRasters[type];
+  }).catch(()=>{if(token===S.foundationToken)delete S.peatRasters[type]});
+ }else img.src=url;
 }
 function strictPeatFeature(f,layer){
  if(!f?.geometry)return false;
@@ -300,8 +307,7 @@ async function loadSavedPeatMask(token){
   if(!r.ok)return;
   const d=await r.json();if(token!==S.foundationToken)return;
   if(!d.features?.length)return;
-  const layer=d.layer===6?6:48;
-  const features=d.features.filter(f=>strictPeatFeature(f,layer));
+  const features=d.features.filter(f=>strictPeatFeature(f,6)||strictPeatFeature(f,48));
   if(!features.length)return;
   S.peatRaw={type:'FeatureCollection',features,source:d.source||'Saved peat mask'};
   S.gisShapes.push(...features.map(f=>({type:'soil',geometry:f.geometry})));
@@ -467,6 +473,11 @@ async function loadFoundation(force=false, token=S.foundationToken){
   const d=await r.json();if(!r.ok)throw Error(d.message||'Calculation unavailable');
   if(token!==S.foundationToken||siteKey!==S.siteKey||requestId!==S.foundationRequestId)return;
   S.foundation=d;S.foundationReady=d.status==='ready';updateSiteMetrics(d.metrics);
+  if(STATIC_PAGES){
+   if(S.siteReportBlob)URL.revokeObjectURL(S.siteReportBlob);
+   S.siteReportBlob=URL.createObjectURL(new Blob([JSON.stringify({site:S.site,foundation:d,environment:S.env},null,2)],{type:'application/json'}));
+   $('exportSite').href=S.siteReportBlob;$('exportSite').download=siteKey+'-report.json';
+  }
   S.blockPlaces=d.candidates?.length?d.candidates:(d.selected||[]);
   S.rankedBlockPlaces=[];S.fireRankStatus=null;setBlocks();renderBlocks();drawOverlay();simulate(false);
   $('foundationStatus').textContent=d.status==='ready'?'Mapped':d.status==='canals_only'?'Canals mapped':d.status==='needs_canals'?'Waiting for canals':'Waiting for peat';
@@ -677,6 +688,6 @@ function bind(){
  $('finishCanal').onclick=addCanal;$('cancelCanal').onclick=()=>{S.drawPoints=[];updateDrawCount();drawOverlay();msg('Canal canceled')};for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>setMode(b.dataset.mode);$('placeSelect').onchange=e=>{let site=sites.find(s=>s.id===e.target.value);if(site)siteSelect(site)};$('homeBtn').onclick=()=>{if(S.site){S.lat=S.site.lat;S.lon=S.site.lon;S.z=11.6;drawBase();drawOverlay();updateScale()}};$('zoomPlus').onclick=()=>zoom(.7);$('zoomMinus').onclick=()=>zoom(-.7);$('scanBtn').onclick=()=>{if(!S.scanController)scanWaterways(true)};$('fitNetwork').onclick=fitNetwork;$('recommendBtn').onclick=recommendBlocks;$('khgCheck').onchange=e=>{S.showKHG=e.target.checked;drawOverlay()};$('fegCheck').onchange=e=>{S.showFEG=e.target.checked;drawOverlay()};for(const b of document.querySelectorAll('[data-weather]'))b.onclick=()=>{S.weather=b.dataset.weather;document.querySelectorAll('[data-weather]').forEach(x=>x.classList.toggle('selected',x===b));simulate(true)};
  for(const [id,key,label,unit] of [['waterInput','water','waterValue',' cm'],['windInput','wind','windValue',' km/h'],['dirInput','direction','dirValue',''],['teamsInput','teams','teamsValue',''],['arrivalInput','arrival','arrivalValue',' h'],['blocksInput','blocks','blocksValue','']]){$(id).oninput=e=>{S[key]=+e.target.value;if(key==='wind')S.manualWind=true;if(key==='direction')S.manualDirection=true;$(label).textContent=id==='dirInput'?['North ↑','NE ↗','East →','SE ↘','South ↓','SW ↙','West ←','NW ↖'][S.direction/45]:S[key]+unit;if(key==='blocks')setBlocks();simulate(true)}}$('playBtn').onclick=play;$('resetBtn').onclick=()=>{pause();S.hour=0;updateResults();drawOverlay()};$('stepBtn').onclick=()=>{pause();S.hour=Math.min((S.fire?.frames?.length||1)-1,S.hour+1);updateResults();drawOverlay()};$('timeSlider').oninput=e=>{pause();S.hour=+e.target.value;updateResults();drawOverlay()};$('helpBtn').onclick=()=>$('helpModal').classList.add('open');$('helpClose').onclick=$('helpDone').onclick=()=>$('helpModal').classList.remove('open');$('helpModal').onclick=e=>{if(e.target===$('helpModal'))$('helpModal').classList.remove('open')};
  let stage=$('mapStage');stage.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('button,select,input,a'))return;S.drag={x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};stage.setPointerCapture(e.pointerId)});stage.addEventListener('pointermove',e=>{if(!S.drag)return;const dx=e.clientX-S.drag.lastX,dy=e.clientY-S.drag.lastY;if(Math.hypot(e.clientX-S.drag.x,e.clientY-S.drag.y)>6)S.drag.moved=true;if(S.drag.moved){stage.classList.add('dragging');pan(dx,dy)}S.drag.lastX=e.clientX;S.drag.lastY=e.clientY});stage.addEventListener('pointerup',e=>{const drag=S.drag;S.drag=null;stage.classList.remove('dragging');if(!drag)return;if(drag.moved){scheduleGeo();scheduleScan();return}const r=stage.getBoundingClientRect();handleMapClick(e.clientX-r.left,e.clientY-r.top)});stage.addEventListener('wheel',e=>{e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?.4:-.4,e.clientX-r.left,e.clientY-r.top)},{passive:false});stage.addEventListener('dblclick',e=>{e.preventDefault();const r=stage.getBoundingClientRect();zoom(.85,e.clientX-r.left,e.clientY-r.top)});document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('helpModal').classList.remove('open')}if(e.key===' '&&e.target===document.body){e.preventDefault();play()}});new ResizeObserver(resize).observe(stage);}
-function start(){selectLocationOptions();bind();resize();setInterval(()=>{if(S.site&&!S.scanController)scanWaterways(false)},10*60*1000);siteSelect(sites.find(x=>x.id==='PAP-01'));setMode('ignite');fetch('/api/version').then(r=>r.json()).then(info=>{S.publicReadOnly=Boolean(info.public_read_only);}).catch(()=>{});}
+function start(){selectLocationOptions();bind();resize();setInterval(()=>{if(S.site&&!S.scanController)scanWaterways(false)},10*60*1000);siteSelect(sites.find(x=>x.id===(STATIC_PAGES?'KAL-01':'PAP-01')));setMode('ignite');fetch('/api/version').then(r=>r.json()).then(info=>{S.publicReadOnly=Boolean(info.public_read_only);}).catch(()=>{});}
 start();
 })();
