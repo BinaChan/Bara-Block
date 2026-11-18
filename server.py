@@ -329,7 +329,8 @@ class Handler(SimpleHTTPRequestHandler):
                   'canals_and_rivers': [e for e in raw.get('elements',[]) if e.get('tags',{}).get('waterway') in ('canal','ditch','drain','river','stream','tidal_channel')] if raw else [],
                   'structures':structure_records if raw else None},
                'environment':self.environment_data(site),
-               'manual_edits':disk_read('edits',key_for('edits',{'site':site})) or {'canals':[],'blocks':[]}})
+               'manual_edits':({'canals':[],'blocks':[]} if PUBLIC_READ_ONLY else
+                   (disk_read('edits',key_for('edits',{'site':site})) or {'canals':[],'blocks':[]}))})
         except Exception as exc:return self.reply(500,{'message':str(exc)[:160]})
 
     def site_catalog(self):
@@ -353,7 +354,7 @@ class Handler(SimpleHTTPRequestHandler):
             if peat is not None and (not isinstance(peat,dict) or len(peat.get('features',[]))>1500):
                 raise ValueError('Invalid peat geometry')
             key=key_for('foundation',{'site':site,'lat':round(lat,5),'lon':round(lon,5),'v':23})
-            stored=None if PUBLIC_READ_ONLY else disk_read('foundation',key)
+            stored=disk_read('foundation',key)  # Safe reads are permitted in public mode
             # Return saved complete foundation; partial layers are merged on follow-up.
             if stored and not obj.get('force') and ((not osm or stored['metrics']['osm_available']) and
                            (not peat or stored['metrics']['peat_available'])):

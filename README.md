@@ -32,3 +32,35 @@ macOS/Linux: run `START_MAC_LINUX.sh` from the extracted folder. Server defaults
 `python -m pytest -q test_progressive25_2.py test_server25.py test_integration29.py test_public25.py`
 
 The external OSM/BIG/ERA5 services were not downloaded live during this build; background acquisition paths were tested with controlled provider responses, and the included cache was tested using real bundled geometries.
+
+## Docker deployment and persistent geospatial cache
+
+Bundled seed data for OSM, BIG peat and precomputed foundations are stored under
+`data/tersimpan/{osm,peat_shapes,peat_raster,peat_masks,foundation}`.
+Docker now **includes these seed datasets**. A deployed container can display
+previously collected map layers before live providers respond.
+
+Set `BARA_CACHE_DIR=/app/data/runtime_cache` to store new live data separately.
+Reads prioritize the writable runtime directory and fall back to bundled seed
+data when a new runtime volume is empty:
+
+```bash
+docker build -t bara-block .
+docker run --rm -p 8080:8080 \
+  -v bara-block-runtime:/app/data/runtime_cache \
+  bara-block
+```
+
+Open `http://localhost:8080`. On a cloud host, configure the persistent volume
+**at `/app/data/runtime_cache`**, *not* at `/app/data/tersimpan`: mounting
+over the latter would hide bundled data. Runtime records otherwise disappear
+when an ephemeral container is replaced, but bundled seed data remain.
+
+`BARA_PUBLIC_READ_ONLY=1` disallows editing shared datasets while still
+allowing the API to read precomputed optimization results. Public structured
+exports do not include local manual edits.
+
+GitHub Pages cannot serve this Python application's `/api/*` endpoints;
+deploy the backend to a Docker/Python service to use the cache and simulator.
+`.gitignore` does not untrack previously committed edit files: review any
+existing `data/tersimpan/edits` files before public redistribution.
