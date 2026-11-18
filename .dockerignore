@@ -1,8 +1,12 @@
+# Include bundled geospatial seed cache in Docker images.
 .git
-__pycache__
-.pytest_cache
+__pycache__/
+.pytest_cache/
 *.pyc
 preview_*.png
 test_*.py
-data/tersimpan
 *.zip
+# User edits and generated runtime data must not be published in the image.
+data/tersimpan/edits/
+data/runtime_cache/
+**/*.tmp*
