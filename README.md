@@ -64,3 +64,28 @@ GitHub Pages cannot serve this Python application's `/api/*` endpoints;
 deploy the backend to a Docker/Python service to use the cache and simulator.
 `.gitignore` does not untrack previously committed edit files: review any
 existing `data/tersimpan/edits` files before public redistribution.
+
+## GitHub Pages: cache-backed demo (no Python backend)
+
+The URL `https://binachan.github.io/Bara-Block/` is static-only. The
+`static_api.js` adapter runs **before** `app.js` and maps the app's
+`/api/*` calls to existing repository JSON datasets on GitHub Pages.
+It retrieves cached OpenStreetMap features, peat polygon/soil masks,
+peat raster layers, SMAP snapshots and precomputed foundation candidates
+using deterministic SHA-256 cache paths.
+
+- Initial demo site is `SUM-05`, which has existing OSM, peat and optimized-block data.
+- Previously cached sites load from `data/tersimpan`; sites with no
+  cache cannot show invented maps or measurements.
+- `Sync OSM` attempts a best-effort browser-side Overpass refresh, subject
+  to CORS, provider rate limits and connectivity; it cannot persist new
+  data to the GitHub repository.
+- Fire animation continues to be computed client-side. Optimization for
+  previously cached sites is from precomputed results. Browser-side
+  screening of new mapped canals is **not** full Python hydrological
+  optimization.
+- ERA5-Land cannot be fetched dynamically from the Python provider on Pages.
+  Only a saved `data/derived/era5_sites.json`, if present, can be displayed.
+- For an actually live multi-user deployment, deploy the Docker/Python
+  server with persistent `BARA_CACHE_DIR` storage. GitHub Pages is not
+  a substitute for it.
