@@ -99,7 +99,7 @@ function zoom(delta,px=S.w/2,py=S.h/2){const v=VP(),pivot=lnglat(px,py,v);S.z=cl
 function nearestLine(lon,lat){let best=null,dist=Infinity;for(const line of [...S.customCanals,...S.canals,...S.rivers]){const p=line.points||[];for(let j=1;j<p.length;j++){const a=p[j-1],b=p[j],ax=a[0]*Math.cos(lat*RAD),bx=b[0]*Math.cos(lat*RAD),px=lon*Math.cos(lat*RAD);let t=clip(((px-ax)*(bx-ax)+(lat-a[1])*(b[1]-a[1]))/(Math.pow(bx-ax,2)+Math.pow(b[1]-a[1],2)||1),0,1);const q=[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])],d=D(lon,lat,...q);if(d<dist){dist=d;best={line,lon:q[0],lat:q[1],dist:d}}}}return best;}
 function siteSelect(site,fly=true){
  pause();clearTimeout(osmRefreshTimer);S.site=site;const siteKey=site.id==='CUSTOM'?`CUSTOM-${site.lat.toFixed(4)}-${site.lon.toFixed(4)}`:site.id;
- S.siteKey=siteKey.replace(/[^A-Za-z0-9_-]/g,'_');S.editSeq=(S.editSeq||0)+1;
+ S.siteKey=siteKey.replace(/[^A-Za-z0-9_-]/g,'_');if($('placeSelect'))$('placeSelect').value=site.id;S.editSeq=(S.editSeq||0)+1;
  if(fly){S.lat=site.lat;S.lon=site.lon;S.z=12.35}
  S.ignition={lat:site.lat+.004,lon:site.lon-.004};
  S.canals=[];S.rivers=[];S.structures=[];S.customCanals=[];S.drawPoints=[];
